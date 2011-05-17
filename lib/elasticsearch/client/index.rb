@@ -14,8 +14,7 @@ module ElasticSearch
 
         id = options.delete(:id)
         if @batch
-          #TODO add routing, parent
-          @batch << { :index => { :_index => index, :_type => type, :_id => id }}
+          @batch << { :index => { :_index => index, :_type => type, :_id => id}.merge(process_bulk_options(document,options))}
           @batch << document
         else
           result = execute(:index, index, type, id, document, options)
@@ -44,8 +43,7 @@ module ElasticSearch
         index, type, options = extract_required_scope(options)
 
         if @batch
-          #TODO add routing, parent
-          @batch << { :delete => { :_index => index, :_type => type, :_id => id }}
+          @batch << { :delete => { :_index => index, :_type => type, :_id => id}.merge(process_bulk_options(nil,options))}
         else
           result = execute(:delete, index, type, id, options)
           result["ok"]
@@ -114,6 +112,18 @@ module ElasticSearch
         response = execute(:bulk, @batch, options)
       ensure
         @batch = nil
+      end
+
+      private 
+      
+      def process_bulk_options(document,options={})
+        document ||= {} 
+        bulk_opts = {}
+        parent = options[:parent] || document[:_parent]
+        bulk_opts[:_parent] = parent if parent
+        routing = options[:routing] || document[:_routing]
+        bulk_opts[:_routing] = routing if routing
+        bulk_opts
       end
 
     end
